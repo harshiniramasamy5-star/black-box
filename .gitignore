@@ -3,3 +3,6 @@ __pycache__/
 .DS_Store
 black_box_data.json
 *.save
+__pycache__/
+*.pyc
+*.save
