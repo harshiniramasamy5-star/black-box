@@ -64,8 +64,8 @@ def print_entry(e):
     print()
 
 # ── Commands ──────────────────────────────────────────────────────────────────
-
 def cmd_record(args):
+    """Record a new prediction with confidence level.""":
     data = load_data()
 
     # FIX 1: accept --statement as an alias alongside --prediction / --assumption
@@ -92,9 +92,6 @@ def cmd_record(args):
     data["next_id"] += 1
     save_data(data)
     print(f"{GREEN}✓ Recorded entry #{entry['id']}: '{args.event}'{RESET}")
-
-
-def cmd_list(args):
     data    = load_data()
     entries = data["entries"]
 
