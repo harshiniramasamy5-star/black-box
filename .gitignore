@@ -10,3 +10,4 @@ assets/
 build/
 dist/
 venv/
+*.save
