@@ -12,3 +12,5 @@ dist/
 venv/
 *.save
 *.save
+*.save
+*.save
