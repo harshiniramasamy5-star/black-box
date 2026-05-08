@@ -1,81 +1,79 @@
-````markdown
-# 🖤 Personal Black Box
+# Personal Black Box
 
-A command-line tool to record predictions and assumptions before important events, then review them afterward to measure how well-calibrated your thinking is.
+A professional Python CLI tool for recording predictions, reviewing outcomes, and improving decision-making accuracy over time.
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/status-active-success)
 
 ---
 
-# ✨ Features
+# Features
 
 - Record predictions with confidence levels
-- Review outcomes later with accuracy scores
-- Measure overconfidence / underconfidence
-- View calibration reports
-- Analyze category-wise thinking bias
-- Search entries quickly
-- Edit and delete predictions
-- Export reviewed entries to Markdown reports
-- Get reminders for overdue pending entries
+- Review outcomes and calculate accuracy
+- Search and filter entries
+- Export prediction history
+- Track calibration and decision-making patterns
+- JSON-based persistent storage
+- Command-line interface using argparse
+- Automated testing with pytest
 
 ---
 
-# 📦 Installation
+# Project Structure
 
-## 1. Clone the project
-
-```bash
-git clone <your-repo-url>
-cd black_box
-````
-
-## 2. Install dependencies
-
-```bash
-pip install colorama
+```text
+black_box/
+│
+├── black_box.py          # Main CLI application
+├── test_black_box.py     # Test suite
+├── requirements.txt      # Project dependencies
+├── LICENSE               # MIT License
+├── README.md             # Project documentation
+├── .gitignore            # Ignored files/folders
+└── data.json             # Prediction storage
 ```
 
 ---
 
-# ▶️ Usage
+# Requirements
+
+- Python 3.10+
+
+---
+
+# Installation
+
+Clone the repository:
 
 ```bash
-python black_box.py <command> [options]
+git clone https://github.com/harshiniramasamy5-star/black-box.git
+cd black-box
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ---
 
-# 📌 Commands
+# Usage
 
-| Command       | Purpose                      |
-| ------------- | ---------------------------- |
-| `record`      | Record a new prediction      |
-| `list`        | List entries                 |
-| `review`      | Review a prediction          |
-| `stats`       | Show overall statistics      |
-| `calibration` | Show calibration report      |
-| `search`      | Search predictions           |
-| `export`      | Export reviewed entries      |
-| `remind`      | Show overdue pending entries |
-| `edit`        | Edit an entry                |
-| `delete`      | Delete an entry              |
-
----
-
-# 🧠 Example Commands
-
-## 1. Record a prediction
+## Record a Prediction
 
 ```bash
 python black_box.py record \
---event "Final Exam" \
+--event "Math Exam" \
 --statement "I will score above 90" \
---confidence 80 \
---category study
+--confidence 80
 ```
 
 ---
 
-## 2. List all entries
+## List Predictions
 
 ```bash
 python black_box.py list
@@ -83,213 +81,108 @@ python black_box.py list
 
 ---
 
-## 3. List pending entries
+## Review a Prediction
 
 ```bash
-python black_box.py list --status pending
+python black_box.py review \
+--id 1 \
+--outcome correct \
+--accuracy 90
 ```
 
 ---
 
-## 4. List reviewed entries
-
-```bash
-python black_box.py list --status reviewed
-```
-
----
-
-## 5. Review a prediction
-
-```bash
-python black_box.py review 1 \
---outcome "Scored 85" \
---accuracy 75 \
---lesson "Need more revision"
-```
-
----
-
-## 6. View statistics
+## View Statistics
 
 ```bash
 python black_box.py stats
 ```
 
-Example output:
-
-```text
-=== Stats ===
-Total entries   : 7
-Pending reviews : 2
-Avg confidence  : 59.3%
-Avg accuracy    : 70.0%
-```
-
 ---
 
-## 7. View calibration report
+## Search Predictions
 
 ```bash
-python black_box.py calibration
-```
-
-Example output:
-
-```text
-Confidence 70-79% | Predictions: 2 | Avg accuracy: 68% | Gap: -2%
-Confidence 80-89% | Predictions: 2 | Avg accuracy: 88% | Gap: +8%
+python black_box.py search --keyword "exam"
 ```
 
 ---
 
-## 8. Search entries
+# Example Workflow
 
-### By event
+1. Record a prediction
+2. Wait for the outcome
+3. Review the prediction
+4. Analyze confidence vs accuracy
+5. Improve future decision-making
+
+---
+
+# Technologies Used
+
+- Python
+- argparse
+- JSON
+- pytest
+- colorama
+
+---
+
+# Testing
+
+Run tests using:
 
 ```bash
-python black_box.py search --event exam
+pytest
 ```
 
-### By category
+Generate HTML test report:
 
 ```bash
-python black_box.py search --category study
-```
-
-### By keyword
-
-```bash
-python black_box.py search --keyword score
+pytest --html=report.html
 ```
 
 ---
 
-## 9. Edit an entry
+# Future Improvements
 
-```bash
-python black_box.py edit 6 \
---statement "Updated prediction"
-```
-
-Update confidence:
-
-```bash
-python black_box.py edit 6 --confidence 55
-```
+- SQLite database support
+- CSV/Markdown export
+- Interactive terminal UI
+- Machine learning confidence analysis
+- Web dashboard
+- User authentication
+- Prediction categories and tagging
 
 ---
 
-## 10. Delete an entry
+# Learning Outcomes
 
-```bash
-python black_box.py delete 8
-```
+This project demonstrates:
 
----
-
-## 11. Export reviewed entries
-
-```bash
-python black_box.py export
-```
-
-This creates:
-
-```text
-black_box_report.md
-```
+- CLI application development
+- Argument parsing with argparse
+- JSON data handling
+- File persistence
+- Software testing with pytest
+- Git and GitHub workflows
+- Clean project structuring
+- Documentation practices
 
 ---
 
-## 12. Get overdue reminders
+# License
 
-```bash
-python black_box.py remind
-```
+This project is licensed under the MIT License.
 
----
-
-# 📊 Calibration Explained
-
-The calibration report groups predictions into confidence buckets and compares expected confidence with actual accuracy.
-
-Example:
-
-| Confidence Bucket | Avg Accuracy | Meaning        |
-| ----------------- | ------------ | -------------- |
-| 80–89%            | 60%          | Overconfident  |
-| 50–59%            | 70%          | Underconfident |
-
-A positive gap means overconfidence.
-
-A negative gap means underconfidence.
+See the LICENSE file for details.
 
 ---
 
-# 🗂️ Data Storage
+# Author
 
-All entries are stored in:
+Harshini Ramasamy
 
-```text
-black_box_data.json
-```
-
-Each entry contains:
-
-| Field         | Description              |
-| ------------- | ------------------------ |
-| `id`          | Unique prediction ID     |
-| `event`       | Event name               |
-| `statement`   | Prediction/assumption    |
-| `confidence`  | Confidence level (0–100) |
-| `accuracy`    | Review accuracy (0–100)  |
-| `lesson`      | Reflection after review  |
-| `category`    | Prediction category      |
-| `status`      | `pending` or `reviewed`  |
-| `created_at`  | Creation date            |
-| `reviewed_at` | Review date              |
+First-year CSE student passionate about software development, problem-solving, and building practical tools with Python.
 
 ---
-
-# 🛡️ Validation
-
-The CLI validates:
-
-* Confidence must be between 0–100
-* Accuracy must be between 0–100
-* Invalid IDs are rejected
-* Missing required arguments are handled safely
-
----
-
-# 📁 Example Project Structure
-
-```text
-black_box/
-│
-├── black_box.py
-├── storage.py
-├── black_box_data.json
-├── black_box_report.md
-├── README.md
-└── tests/
-```
-
----
-
-# 🚀 Future Improvements
-
-Possible future upgrades:
-
-* CSV export
-* Graph visualizations
-* SQLite database support
-* AI-generated insight summaries
-* Streak tracking
-* Web dashboard
-* User authentication
-
----
-
-

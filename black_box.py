@@ -1,440 +1,335 @@
-#!/usr/bin/env python3
-"""Personal Black Box - Prediction & Calibration CLI Tool"""
+# professional_black_box.py
+
 
 import argparse
 import json
-import sys
-from datetime import datetime, timedelta
-from pathlib import Path
-from statistics import mean
+import os
+from datetime import datetime
+from colorama import Fore, Style, init
 
-# ── Config ────────────────────────────────────────────────────────────────────
-DATA_FILE = Path("black_box_data.json")
+init(autoreset=True)
 
-# ANSI colours
-RED    = "\033[91m"
-GREEN  = "\033[92m"
-YELLOW = "\033[93m"
-CYAN   = "\033[96m"
-BOLD   = "\033[1m"
-RESET  = "\033[0m"
+DATA_FILE = "data.json"
 
-# ── Persistence ───────────────────────────────────────────────────────────────
+
+# =========================
+# Utility Functions
+# =========================
+
+
 def load_data():
-    if DATA_FILE.exists():
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return {"entries": [], "next_id": 1}
+    """Load prediction data from JSON storage."""
+    if not os.path.exists(DATA_FILE):
+        return []
+
+    with open(DATA_FILE, "r") as file:
+        try:
+            return json.load(file)
+        except json.JSONDecodeError:
+            return []
+
+
 
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    """Save prediction data into JSON storage."""
+    with open(DATA_FILE, "w") as file:
+        json.dump(data, file, indent=4)
 
-# ── Validation ────────────────────────────────────────────────────────────────
+
+
 def validate_score(value, name="Score"):
+    """Validate that a score is between 0 and 100."""
     try:
-        v = float(value)
-    except (TypeError, ValueError):
-        print(f"{RED}Error: {name} must be a number between 0 and 100.{RESET}")
-        sys.exit(1)
-    if not (0 <= v <= 100):
-        print(f"{RED}Error: {name} must be between 0 and 100 (got {v}).{RESET}")
-        sys.exit(1)
-    return v
+        value = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{name} must be a number")
 
-# ── Shared printer ────────────────────────────────────────────────────────────
-def print_entry(e):
-    colour     = GREEN if e["status"] == "reviewed" else YELLOW
-    conf_colour = RED if e["confidence"] >= 80 else RESET
-    print(
-        f"{colour}[#{e['id']}] {e['event']}{RESET}  "
-        f"cat={e['category']}  "
-        f"conf={conf_colour}{e['confidence']}%{RESET}  "
-        f"status={e['status']}  "
-        f"created={e['created'][:10]}"
-    )
-    print(f"     Statement: {e['statement']}")
-    if e["status"] == "reviewed":
-        acc_colour = RED if (e["accuracy"] or 0) < 50 else GREEN
-        print(
-            f"     Outcome: {e['outcome']}  "
-            f"accuracy={acc_colour}{e['accuracy']}%{RESET}  "
-            f"lesson={e['lesson']}"
-        )
-    print()
+    if not (0 <= value <= 100):
+        raise argparse.ArgumentTypeError(f"{name} must be between 0 and 100")
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+    return value
+
+
+
+def print_entry(entry):
+    """Display a formatted prediction entry."""
+    print(Fore.CYAN + "=" * 50)
+    print(Fore.YELLOW + f"ID: {entry['id']}")
+    print(f"Event: {entry['event']}")
+    print(f"Statement: {entry['statement']}")
+    print(f"Confidence: {entry['confidence']}%")
+    print(f"Category: {entry.get('category', 'General')}")
+    print(f"Status: {entry['status']}")
+    print(f"Created: {entry['created_at']}")
+
+    if entry['status'] == 'reviewed':
+        print(f"Outcome: {entry.get('outcome', 'N/A')}")
+        print(f"Accuracy: {entry.get('accuracy', 'N/A')}%")
+        print(f"Lesson: {entry.get('lesson', 'N/A')}")
+
+
+# =========================
+# Command Functions
+# =========================
+
 
 def cmd_record(args):
+    """Record a new prediction."""
     data = load_data()
 
-    # FIX 1: accept --statement as an alias alongside --prediction / --assumption
-    statement = args.prediction or args.assumption or args.statement
-    if not statement:
-        print(f"{RED}Error: provide --prediction, --assumption, or --statement.{RESET}")
-        sys.exit(1)
+    new_id = max([item["id"] for item in data], default=0) + 1
 
-    confidence = validate_score(args.confidence, "Confidence")
     entry = {
-        "id":         data["next_id"],
-        "event":      args.event,
-        "statement":  statement,
-        "confidence": confidence,
-        "category":   args.category or "general",
-        "created":    datetime.now().isoformat(timespec="seconds"),
-        "status":     "pending",
-        "outcome":    None,
-        "accuracy":   None,
-        "lesson":     None,
-        "reviewed":   None,
+        "id": new_id,
+        "event": args.event,
+        "statement": args.statement,
+        "confidence": args.confidence,
+        "category": args.category,
+        "status": "pending",
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    data["entries"].append(entry)
-    data["next_id"] += 1
+
+    data.append(entry)
     save_data(data)
-    print(f"{GREEN}✓ Recorded entry #{entry['id']}: '{args.event}'{RESET}")
+
+    print(Fore.GREEN + "Prediction recorded successfully!")
+    print_entry(entry)
+
 
 
 def cmd_list(args):
-    data    = load_data()
-    entries = data["entries"]
+    """List all predictions with optional filters."""
+    data = load_data()
 
-    status_filter = getattr(args, "status", "all") or "all"
-    search        = getattr(args, "search", None)
-    category      = getattr(args, "category", None)
+    if args.status:
+        data = [item for item in data if item["status"] == args.status]
 
-    if status_filter != "all":
-        entries = [e for e in entries if e["status"] == status_filter]
-    if category:
-        entries = [e for e in entries if e["category"].lower() == category.lower()]
-    if search:
-        kw = search.lower()
-        entries = [e for e in entries
-            if kw in e["event"].lower()
-            or kw in e["statement"].lower()
-            or kw in (e["lesson"] or "").lower()]
+    if args.category:
+        data = [item for item in data if item.get("category", "").lower() == args.category.lower()]
 
-    if not entries:
-        print(f"{YELLOW}No entries found.{RESET}")
+    if not data:
+        print(Fore.RED + "No entries found.")
         return
 
-    for e in entries:
-        print_entry(e)
+    for entry in data:
+        print_entry(entry)
+
 
 
 def cmd_review(args):
-    data  = load_data()
-    entry = next((e for e in data["entries"] if e["id"] == args.id), None)
-    if not entry:
-        print(f"{RED}Error: No entry with ID {args.id}.{RESET}")
-        sys.exit(1)
-    if entry["status"] == "reviewed":
-        print(f"{YELLOW}Warning: Entry #{args.id} is already reviewed. Overwriting.{RESET}")
+    """Review a prediction and update outcome."""
+    data = load_data()
 
-    accuracy        = validate_score(args.accuracy, "Accuracy")
-    entry["outcome"]  = args.outcome
-    entry["accuracy"] = accuracy
-    entry["lesson"]   = args.lesson or ""
-    entry["reviewed"] = datetime.now().isoformat(timespec="seconds")
-    entry["status"]   = "reviewed"
-    save_data(data)
-    print(f"{GREEN}✓ Entry #{args.id} reviewed. Accuracy: {accuracy}%{RESET}")
+    for entry in data:
+        if entry["id"] == args.id:
+            entry["status"] = "reviewed"
+            entry["outcome"] = args.outcome
+            entry["accuracy"] = args.accuracy
+            entry["lesson"] = args.lesson
+            entry["reviewed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            save_data(data)
+
+            print(Fore.GREEN + "Prediction reviewed successfully!")
+            print_entry(entry)
+            return
+
+    print(Fore.RED + "Entry not found.")
+
 
 
 def cmd_stats(args):
-    data  = load_data()
-    all_e = data["entries"]
-    rev_e = [e for e in all_e if e["status"] == "reviewed"]
+    """Display prediction statistics."""
+    data = load_data()
 
-    if not all_e:
-        print("No entries yet.")
-        return
+    total = len(data)
+    reviewed = [item for item in data if item["status"] == "reviewed"]
+    pending = [item for item in data if item["status"] == "pending"]
 
-    avg_conf = mean(e["confidence"] for e in all_e)
-    pending  = sum(1 for e in all_e if e["status"] == "pending")
+    print(Fore.CYAN + "\n=== Prediction Statistics ===")
+    print(f"Total Predictions: {total}")
+    print(f"Reviewed Predictions: {len(reviewed)}")
+    print(f"Pending Predictions: {len(pending)}")
 
-    print(f"\n{BOLD}=== Stats ==={RESET}")
-    print(f"Total entries   : {len(all_e)}")
-    print(f"Pending reviews : {YELLOW}{pending}{RESET}")
-    print(f"Avg confidence  : {avg_conf:.1f}%")
+    if reviewed:
+        avg_accuracy = sum(item.get("accuracy", 0) for item in reviewed) / len(reviewed)
+        print(f"Average Accuracy: {avg_accuracy:.2f}%")
 
-    if rev_e:
-        avg_acc = mean(e["accuracy"] for e in rev_e)
-        print(f"Avg accuracy    : {avg_acc:.1f}%")
-
-        best  = max(rev_e, key=lambda e: e["accuracy"])
-        worst = min(rev_e, key=lambda e: e["accuracy"])
-        print(f"\n{GREEN}Best prediction : #{best['id']} '{best['event']}' — {best['accuracy']}% accurate{RESET}")
-        print(f"{RED}Worst prediction: #{worst['id']} '{worst['event']}' — {worst['accuracy']}% accurate{RESET}")
-
-        # Most overconfident category (conf - accuracy; positive = overconfident)
-        cats = {}
-        for e in rev_e:
-            cats.setdefault(e["category"], []).append(e["confidence"] - e["accuracy"])
-        overconf = max(cats, key=lambda c: mean(cats[c]))
-        gap_val  = mean(cats[overconf])
-        sign     = "+" if gap_val >= 0 else ""
-        print(f"\n{RED}Most overconfident category: '{overconf}' "
-            f"(avg gap {sign}{gap_val:.1f}%){RESET}")
-    else:
-        print("No reviewed entries yet for accuracy stats.")
-    print()
-
-
-def cmd_calibration(args):
-    data  = load_data()
-    rev_e = [e for e in data["entries"] if e["status"] == "reviewed"]
-
-    if not rev_e:
-        print(f"{YELLOW}No reviewed entries for calibration.{RESET}")
-        return
-
-    # FIX 2: track both accuracies and the actual confidence values per bucket
-    #         so gap = avg_accuracy - avg_actual_confidence (not bucket midpoint)
-    buckets = {}
-    for lo in range(0, 100, 10):
-        hi = lo + 9 if lo < 90 else 100
-        buckets[(lo, hi)] = {"accs": [], "confs": []}
-
-    for e in rev_e:
-        c = e["confidence"]
-        for (lo, hi) in buckets:
-            if lo <= c <= hi:
-                buckets[(lo, hi)]["accs"].append(e["accuracy"])
-                buckets[(lo, hi)]["confs"].append(e["confidence"])
-                break
-
-    print(f"\n{BOLD}=== Calibration Report ==={RESET}")
-    for (lo, hi), bdata in sorted(buckets.items()):
-        accs = bdata["accs"]
-        if not accs:
-            continue
-        avg_acc  = mean(accs)
-        avg_conf = mean(bdata["confs"])   # actual average confidence in this bucket
-        gap      = avg_acc - avg_conf
-        gap_str  = f"{gap:+.0f}%"
-        gap_col  = GREEN if gap >= 0 else RED
-        print(
-            f"Confidence {lo:2d}-{hi}%  | "
-            f"Predictions: {len(accs):2d} | "
-            f"Avg accuracy: {avg_acc:.0f}%  | "
-            f"Gap: {gap_col}{gap_str}{RESET}"
-        )
-    print()
 
 
 def cmd_search(args):
-    # FIX 3: search subparser now has --keyword, --event, --category flags
-    if not any([args.keyword, args.event, args.category]):
-        print(f"{RED}Error: provide at least one of --keyword, --event, or --category.{RESET}")
-        sys.exit(1)
+    """Search predictions by keyword."""
+    data = load_data()
 
-    data    = load_data()
-    entries = data["entries"]
+    keyword = args.keyword.lower()
 
-    if args.event:
-        kw      = args.event.lower()
-        entries = [e for e in entries if kw in e["event"].lower()]
-
-    if args.category:
-        entries = [e for e in entries
-            if e["category"].lower() == args.category.lower()]
-
-    if args.keyword:
-        kw      = args.keyword.lower()
-        entries = [e for e in entries
-            if kw in e["event"].lower()
-            or kw in e["statement"].lower()
-            or kw in (e["lesson"] or "").lower()]
-
-    if not entries:
-        print(f"{YELLOW}No entries found.{RESET}")
-        return
-
-    for e in entries:
-        print_entry(e)
-
-
-def cmd_export(args):
-    data  = load_data()
-    rev_e = [e for e in data["entries"] if e["status"] == "reviewed"]
-    if not rev_e:
-        print(f"{YELLOW}No reviewed entries to export.{RESET}")
-        return
-
-    out   = Path(args.output or "black_box_report.md")
-    lines = [
-        "# Personal Black Box — Reviewed Predictions\n",
-        f"_Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n\n",
+    results = [
+        item for item in data
+        if keyword in item["event"].lower()
+        or keyword in item["statement"].lower()
     ]
-    for e in rev_e:
-        lines.append(f"## #{e['id']} — {e['event']}\n")
-        lines.append(f"- **Statement**: {e['statement']}\n")
-        lines.append(f"- **Category**: {e['category']}\n")
-        lines.append(f"- **Confidence**: {e['confidence']}%\n")
-        lines.append(f"- **Outcome**: {e['outcome']}\n")
-        lines.append(f"- **Accuracy**: {e['accuracy']}%\n")
-        lines.append(f"- **Lesson**: {e['lesson']}\n")
-        lines.append(f"- **Reviewed**: {e['reviewed'][:10]}\n\n")
 
-    out.write_text("".join(lines))
-    print(f"{GREEN}✓ Report written to {out}{RESET}")
-
-
-def cmd_reminders(args):
-    data   = load_data()
-    cutoff = datetime.now() - timedelta(days=30)
-    old    = [e for e in data["entries"]
-        if e["status"] == "pending"
-        and datetime.fromisoformat(e["created"]) < cutoff]
-    if not old:
-        print(f"{GREEN}No overdue pending entries.{RESET}")
-        return
-    print(f"{YELLOW}=== Overdue Pending Entries (>30 days) ==={RESET}")
-    for e in old:
-        days = (datetime.now() - datetime.fromisoformat(e["created"])).days
-        print(f"  #{e['id']} '{e['event']}' — {days} days old")
-
-
-def cmd_edit(args):
-    data  = load_data()
-    entry = next((e for e in data["entries"] if e["id"] == args.id), None)
-    if not entry:
-        print(f"{RED}Error: No entry with ID {args.id}.{RESET}")
-        sys.exit(1)
-
-    # FIX 4: require at least one field before prompting
-    if not any([args.event, args.statement,
-                args.confidence is not None, args.category]):
-        print(f"{RED}Error: provide at least one of "
-        f"--event, --statement, --confidence, --category.{RESET}")
-        sys.exit(1)
-
-    confirm = input(f"Edit entry #{args.id} '{entry['event']}'? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
+    if not results:
+        print(Fore.RED + "No matching predictions found.")
         return
 
-    if args.event:
-        entry["event"]     = args.event
-    if args.statement:
-        entry["statement"] = args.statement
-    if args.confidence is not None:
-        entry["confidence"] = validate_score(args.confidence, "Confidence")
-    if args.category:
-        entry["category"]  = args.category
+    for entry in results:
+        print_entry(entry)
 
-    save_data(data)
-    print(f"{GREEN}✓ Entry #{args.id} updated.{RESET}")
 
 
 def cmd_delete(args):
-    data  = load_data()
-    entry = next((e for e in data["entries"] if e["id"] == args.id), None)
-    if not entry:
-        print(f"{RED}Error: No entry with ID {args.id}.{RESET}")
-        sys.exit(1)
+    """Delete a prediction entry."""
+    data = load_data()
 
-    confirm = input(f"Delete entry #{args.id} '{entry['event']}'? [y/N] ").strip().lower()
-    if confirm != "y":
-        print("Aborted.")
+    updated_data = [item for item in data if item["id"] != args.id]
+
+    if len(updated_data) == len(data):
+        print(Fore.RED + "Entry not found.")
         return
 
-    data["entries"] = [e for e in data["entries"] if e["id"] != args.id]
-    save_data(data)
-    print(f"{GREEN}✓ Entry #{args.id} deleted.{RESET}")
+    save_data(updated_data)
+
+    print(Fore.GREEN + f"Entry {args.id} deleted successfully.")
 
 
-# ── Argument Parser ───────────────────────────────────────────────────────────
-def build_parser():
+
+def cmd_export(args):
+    """Export predictions to a JSON file."""
+    data = load_data()
+
+    export_file = args.file
+
+    with open(export_file, "w") as file:
+        json.dump(data, file, indent=4)
+
+    print(Fore.GREEN + f"Data exported to {export_file}")
+
+
+
+def cmd_reminders(args):
+    """Show pending predictions that need review."""
+    data = load_data()
+
+    pending = [item for item in data if item["status"] == "pending"]
+
+    if not pending:
+        print(Fore.GREEN + "No overdue pending entries.")
+        return
+
+    print(Fore.CYAN + "\n=== Pending Predictions ===")
+
+    for entry in pending:
+        print_entry(entry)
+
+
+# =========================
+# Main Parser Setup
+# =========================
+
+
+def main():
+    """Main CLI entry point."""
+
     parser = argparse.ArgumentParser(
-        prog="black_box.py",
-        description="Personal Black Box — track predictions & calibrate your thinking.",
+        description="Personal Black Box - Prediction Calibration CLI Tool"
     )
-    sub = parser.add_subparsers(dest="command", metavar="COMMAND")
-    sub.required = True
 
-    # record  — FIX 1: --statement added as third alias
-    p_rec = sub.add_parser("record", help="Record a new prediction or assumption")
-    p_rec.add_argument("--event",      required=True,        help="Event name")
-    p_rec.add_argument("--prediction", default=None,         help="Prediction text")
-    p_rec.add_argument("--assumption", default=None,         help="Assumption text")
-    p_rec.add_argument("--statement",  default=None,         help="Statement (alias for --prediction)")
-    p_rec.add_argument("--confidence", required=True,        help="Confidence 0-100")
-    p_rec.add_argument("--category",   default="general",    help="Category tag")
+    subparsers = parser.add_subparsers(dest="command")
 
-    # list
-    p_lst = sub.add_parser("list", help="List entries")
-    p_lst.add_argument("--status",   default="all",
-    choices=["pending", "reviewed", "all"])
-    p_lst.add_argument("--category", default=None,  help="Filter by category")
-    p_lst.add_argument("--search",   default=None,  help="Keyword search")
+    # Record Command
+    parser_record = subparsers.add_parser("record", help="Record a prediction")
 
-    # review
-    p_rev = sub.add_parser("review", help="Review a pending entry")
-    p_rev.add_argument("id",         type=int,      help="Entry ID")
-    p_rev.add_argument("--outcome",  required=True, help="Actual outcome")
-    p_rev.add_argument("--accuracy", required=True, help="Accuracy 0-100")
-    p_rev.add_argument("--lesson",   default="",    help="Lesson learned")
+    parser_record.add_argument("--event", required=True, help="Event name")
+    parser_record.add_argument("--statement", required=True, help="Prediction statement")
+    parser_record.add_argument(
+        "--confidence",
+        required=True,
+        type=lambda x: validate_score(x, "Confidence"),
+        help="Confidence level (0-100)"
+    )
+    parser_record.add_argument(
+        "--category",
+        default="General",
+        help="Prediction category"
+    )
 
-    # stats
-    sub.add_parser("stats", help="Show overall statistics")
+    parser_record.set_defaults(func=cmd_record)
 
-    # calibration
-    sub.add_parser("calibration", help="Show calibration report")
+    # List Command
+    parser_list = subparsers.add_parser("list", help="List predictions")
 
-    # search  — FIX 3: proper named flags instead of broken positional arg
-    p_srch = sub.add_parser("search", help="Search entries by event, category, or keyword")
-    p_srch.add_argument("--keyword",  default=None, help="Keyword across event/statement/lesson")
-    p_srch.add_argument("--event",    default=None, help="Search by event name")
-    p_srch.add_argument("--category", default=None, help="Filter by category")
+    parser_list.add_argument(
+        "--status",
+        choices=["pending", "reviewed"],
+        help="Filter by status"
+    )
 
-    # export
-    p_exp = sub.add_parser("export", help="Export reviewed entries to Markdown")
-    p_exp.add_argument("--output", default="black_box_report.md", help="Output file path")
+    parser_list.add_argument(
+        "--category",
+        help="Filter by category"
+    )
 
-    # reminders
-    sub.add_parser("remind", help="Show pending entries older than 30 days")
+    parser_list.set_defaults(func=cmd_list)
 
-    # edit
-    p_edit = sub.add_parser("edit", help="Edit an existing entry")
-    p_edit.add_argument("id",           type=int)
-    p_edit.add_argument("--event",      default=None)
-    p_edit.add_argument("--statement",  default=None)
-    p_edit.add_argument("--confidence", default=None)
-    p_edit.add_argument("--category",   default=None)
+    # Review Command
+    parser_review = subparsers.add_parser("review", help="Review a prediction")
 
-    # delete
-    p_del = sub.add_parser("delete", help="Delete an entry")
-    p_del.add_argument("id", type=int)
+    parser_review.add_argument("--id", required=True, type=int, help="Prediction ID")
+    parser_review.add_argument("--outcome", required=True, help="Outcome")
+    parser_review.add_argument(
+        "--accuracy",
+        required=True,
+        type=lambda x: validate_score(x, "Accuracy"),
+        help="Accuracy score (0-100)"
+    )
+    parser_review.add_argument(
+        "--lesson",
+        default="No lesson provided",
+        help="Lesson learned"
+    )
 
-    return parser
+    parser_review.set_defaults(func=cmd_review)
 
+    # Stats Command
+    parser_stats = subparsers.add_parser("stats", help="Show statistics")
+    parser_stats.set_defaults(func=cmd_stats)
 
-# ── Entry Point ───────────────────────────────────────────────────────────────
-COMMAND_MAP = {
-    "record":      cmd_record,
-    "list":        cmd_list,
-    "review":      cmd_review,
-    "stats":       cmd_stats,
-    "calibration": cmd_calibration,
-    "search":      cmd_search,
-    "export":      cmd_export,
-    "remind":   cmd_reminders,
-    "edit":        cmd_edit,
-    "delete":      cmd_delete,
-}
+    # Search Command
+    parser_search = subparsers.add_parser("search", help="Search predictions")
+    parser_search.add_argument("--keyword", required=True, help="Search keyword")
+    parser_search.set_defaults(func=cmd_search)
 
-if __name__ == "__main__":
-    parser = build_parser()
+    # Delete Command
+    parser_delete = subparsers.add_parser("delete", help="Delete prediction")
+    parser_delete.add_argument("--id", required=True, type=int, help="Prediction ID")
+    parser_delete.set_defaults(func=cmd_delete)
 
-    # FIX 4: show help menu when no subcommand given (acceptance criteria)
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
+    # Export Command
+    parser_export = subparsers.add_parser("export", help="Export predictions")
+    parser_export.add_argument(
+        "--file",
+        default="export.json",
+        help="Export filename"
+    )
+    parser_export.set_defaults(func=cmd_export)
 
+    # Reminders Command
+    parser_reminders = subparsers.add_parser(
+        "remind",
+        help="Show pending reminders"
+    )
+    parser_reminders.set_defaults(func=cmd_reminders)
+
+    # Parse Arguments
     args = parser.parse_args()
-    fn   = COMMAND_MAP.get(args.command)
-    if fn:
-        fn(args)
+
+    if hasattr(args, "func"):
+        args.func(args)
     else:
         parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
+```
