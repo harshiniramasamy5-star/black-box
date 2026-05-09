@@ -183,6 +183,6 @@ See the LICENSE file for details.
 
 Harshini Ramasamy
 
-First-year CSE student passionate about software development, problem-solving, and building practical tools with Python.
+First-year CSE student passionate about software development, problem-solving, and building practical tools.
 
 ---
