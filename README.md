@@ -282,19 +282,6 @@ The test suite covers:
 ---
 
 
-
-## Future Improvements
-
-- SQLite backend for querying across large datasets
-- CSV export for spreadsheet analysis
-- Interactive terminal UI using `rich` or `textual`
-- Prediction categories and tagging system
-- Machine learning confidence trend analysis
-- Web dashboard with calibration charts
-- User authentication for multi-user environments
-
----
-
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
