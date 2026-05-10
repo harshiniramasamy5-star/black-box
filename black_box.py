@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Personal Black Box - Prediction & Calibration CLI Tool"""
-
 import argparse
 import json
 import sys
@@ -22,6 +19,7 @@ def load_data():
     if DATA_FILE.exists():
         with open(DATA_FILE, "r") as f:
             return json.load(f)
+
     return {"entries": [], "next_id": 1}
 
 
@@ -60,7 +58,6 @@ def print_entry(e):
 
     if e["status"] == "reviewed":
         acc_colour = RED if (e["accuracy"] or 0) < 50 else GREEN
-
         print(
             f"     Outcome: {e['outcome']}  "
             f"accuracy={acc_colour}{e['accuracy']}%{RESET}  "
@@ -122,7 +119,6 @@ def cmd_list(args):
 
     if search:
         kw = search.lower()
-
         entries = [
             e for e in entries
             if kw in e["event"].lower()
@@ -141,10 +137,7 @@ def cmd_list(args):
 def cmd_review(args):
     data = load_data()
 
-    entry = next(
-        (e for e in data["entries"] if e["id"] == args.id),
-        None
-    )
+    entry = next((e for e in data["entries"] if e["id"] == args.id), None)
 
     if not entry:
         print(f"{RED}Error: No entry with ID {args.id}.{RESET}")
@@ -214,11 +207,13 @@ def cmd_stats(args):
 
         overconf = max(cats, key=lambda c: mean(cats[c]))
         gap_val = mean(cats[overconf])
+
         sign = "+" if gap_val >= 0 else ""
 
         print(
             f"\n{RED}Most overconfident category: "
-            f"'{overconf}' (avg gap {sign}{gap_val:.1f}%){RESET}"
+            f"'{overconf}' "
+            f"(avg gap {sign}{gap_val:.1f}%){RESET}"
         )
 
     else:
@@ -243,7 +238,11 @@ def cmd_calibration(args):
 
     for lo in range(0, 100, 10):
         hi = lo + 9 if lo < 90 else 100
-        buckets[(lo, hi)] = {"accs": [], "confs": []}
+
+        buckets[(lo, hi)] = {
+            "accs": [],
+            "confs": []
+        }
 
     for e in rev_e:
         c = e["confidence"]
@@ -264,6 +263,7 @@ def cmd_calibration(args):
 
         avg_acc = mean(accs)
         avg_conf = mean(bdata["confs"])
+
         gap = avg_acc - avg_conf
 
         gap_str = f"{gap:+.0f}%"
@@ -375,8 +375,8 @@ def cmd_reminders(args):
 
     for e in old:
         days = (
-            datetime.now() -
-            datetime.fromisoformat(e["created"])
+            datetime.now()
+            - datetime.fromisoformat(e["created"])
         ).days
 
         print(f"  #{e['id']} '{e['event']}' — {days} days old")
@@ -402,8 +402,8 @@ def cmd_edit(args):
     ]):
         print(
             f"{RED}Error: provide at least one of "
-            f"--event, --statement, --confidence, "
-            f"--category.{RESET}"
+            f"--event, --statement, "
+            f"--confidence, --category.{RESET}"
         )
         sys.exit(1)
 
@@ -504,7 +504,7 @@ def build_parser():
     p_rec.add_argument(
         "--statement",
         default=None,
-        help="Statement alias"
+        help="Statement (alias for --prediction)"
     )
 
     p_rec.add_argument(
@@ -583,19 +583,19 @@ def build_parser():
 
     p_srch = sub.add_parser(
         "search",
-        help="Search entries"
+        help="Search entries by event, category, or keyword"
     )
 
     p_srch.add_argument(
         "--keyword",
         default=None,
-        help="Keyword search"
+        help="Keyword across event/statement/lesson"
     )
 
     p_srch.add_argument(
         "--event",
         default=None,
-        help="Search by event"
+        help="Search by event name"
     )
 
     p_srch.add_argument(
@@ -606,7 +606,7 @@ def build_parser():
 
     p_exp = sub.add_parser(
         "export",
-        help="Export reviewed entries"
+        help="Export reviewed entries to Markdown"
     )
 
     p_exp.add_argument(
@@ -617,7 +617,7 @@ def build_parser():
 
     sub.add_parser(
         "remind",
-        help="Show overdue pending entries"
+        help="Show pending entries older than 30 days"
     )
 
     p_edit = sub.add_parser(
