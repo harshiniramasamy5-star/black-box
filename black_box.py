@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+"""Personal Black Box - Prediction & Calibration CLI Tool"""
+
 import argparse
 import json
 import sys
@@ -19,7 +22,6 @@ def load_data():
     if DATA_FILE.exists():
         with open(DATA_FILE, "r") as f:
             return json.load(f)
-
     return {"entries": [], "next_id": 1}
 
 
@@ -42,7 +44,23 @@ def validate_score(value, name="Score"):
     return v
 
 
+def migrate_entry(e):
+    """Fill in missing fields for entries created before schema additions."""
+    e.setdefault("created", datetime.now().isoformat(timespec="seconds"))
+    e.setdefault("status", "pending")
+    e.setdefault("category", "general")
+    e.setdefault("confidence", 0)
+    e.setdefault("outcome", None)
+    e.setdefault("accuracy", None)
+    e.setdefault("lesson", None)
+    e.setdefault("reviewed", None)
+    e.setdefault("statement", e.get("prediction") or e.get("assumption") or "")
+    return e
+
+
 def print_entry(e):
+    e = migrate_entry(e)  # ensure all fields exist before printing
+
     colour = GREEN if e["status"] == "reviewed" else YELLOW
     conf_colour = RED if e["confidence"] >= 80 else RESET
 
@@ -58,6 +76,7 @@ def print_entry(e):
 
     if e["status"] == "reviewed":
         acc_colour = RED if (e["accuracy"] or 0) < 50 else GREEN
+
         print(
             f"     Outcome: {e['outcome']}  "
             f"accuracy={acc_colour}{e['accuracy']}%{RESET}  "
@@ -102,7 +121,7 @@ def cmd_record(args):
 
 def cmd_list(args):
     data = load_data()
-    entries = data["entries"]
+    entries = [migrate_entry(e) for e in data["entries"]]
 
     status_filter = getattr(args, "status", "all") or "all"
     search = getattr(args, "search", None)
@@ -119,6 +138,7 @@ def cmd_list(args):
 
     if search:
         kw = search.lower()
+
         entries = [
             e for e in entries
             if kw in e["event"].lower()
@@ -137,13 +157,16 @@ def cmd_list(args):
 def cmd_review(args):
     data = load_data()
 
-    entry = next((e for e in data["entries"] if e["id"] == args.id), None)
+    entry = next(
+        (e for e in data["entries"] if e["id"] == args.id),
+        None
+    )
 
     if not entry:
         print(f"{RED}Error: No entry with ID {args.id}.{RESET}")
         sys.exit(1)
 
-    if entry["status"] == "reviewed":
+    if entry.get("status") == "reviewed":
         print(f"{YELLOW}Warning: Entry #{args.id} is already reviewed. Overwriting.{RESET}")
 
     accuracy = validate_score(args.accuracy, "Accuracy")
@@ -162,7 +185,7 @@ def cmd_review(args):
 def cmd_stats(args):
     data = load_data()
 
-    all_e = data["entries"]
+    all_e = [migrate_entry(e) for e in data["entries"]]
     rev_e = [e for e in all_e if e["status"] == "reviewed"]
 
     if not all_e:
@@ -207,13 +230,11 @@ def cmd_stats(args):
 
         overconf = max(cats, key=lambda c: mean(cats[c]))
         gap_val = mean(cats[overconf])
-
         sign = "+" if gap_val >= 0 else ""
 
         print(
             f"\n{RED}Most overconfident category: "
-            f"'{overconf}' "
-            f"(avg gap {sign}{gap_val:.1f}%){RESET}"
+            f"'{overconf}' (avg gap {sign}{gap_val:.1f}%){RESET}"
         )
 
     else:
@@ -225,10 +246,10 @@ def cmd_stats(args):
 def cmd_calibration(args):
     data = load_data()
 
-    rev_e = [
-        e for e in data["entries"]
-        if e["status"] == "reviewed"
-    ]
+    # FIX: migrate all entries once, then filter — avoids double migrate_entry
+    # on a throwaway dict copy which could miss nested field updates
+    all_entries = [migrate_entry(e) for e in data["entries"]]
+    rev_e = [e for e in all_entries if e["status"] == "reviewed"]
 
     if not rev_e:
         print(f"{YELLOW}No reviewed entries for calibration.{RESET}")
@@ -238,19 +259,15 @@ def cmd_calibration(args):
 
     for lo in range(0, 100, 10):
         hi = lo + 9 if lo < 90 else 100
-
-        buckets[(lo, hi)] = {
-            "accs": [],
-            "confs": []
-        }
+        buckets[(lo, hi)] = {"accs": [], "confs": []}
 
     for e in rev_e:
-        c = e["confidence"]
+        c = e.get("confidence", 0)
 
         for (lo, hi) in buckets:
             if lo <= c <= hi:
-                buckets[(lo, hi)]["accs"].append(e["accuracy"])
-                buckets[(lo, hi)]["confs"].append(e["confidence"])
+                buckets[(lo, hi)]["accs"].append(e.get("accuracy", 0))
+                buckets[(lo, hi)]["confs"].append(c)
                 break
 
     print(f"\n{BOLD}=== Calibration Report ==={RESET}")
@@ -259,13 +276,17 @@ def cmd_calibration(args):
         accs = bdata["accs"]
 
         if not accs:
+            print(
+                f"Confidence {lo:2d}-{hi}%  | "
+                f"Predictions:  0 | "
+                f"Avg accuracy: N/A | "
+                f"Gap: N/A"
+            )
             continue
 
         avg_acc = mean(accs)
         avg_conf = mean(bdata["confs"])
-
         gap = avg_acc - avg_conf
-
         gap_str = f"{gap:+.0f}%"
         gap_col = GREEN if gap >= 0 else RED
 
@@ -288,15 +309,11 @@ def cmd_search(args):
         sys.exit(1)
 
     data = load_data()
-    entries = data["entries"]
+    entries = [migrate_entry(e) for e in data["entries"]]
 
     if args.event:
         kw = args.event.lower()
-
-        entries = [
-            e for e in entries
-            if kw in e["event"].lower()
-        ]
+        entries = [e for e in entries if kw in e["event"].lower()]
 
     if args.category:
         entries = [
@@ -306,7 +323,6 @@ def cmd_search(args):
 
     if args.keyword:
         kw = args.keyword.lower()
-
         entries = [
             e for e in entries
             if kw in e["event"].lower()
@@ -325,10 +341,10 @@ def cmd_search(args):
 def cmd_export(args):
     data = load_data()
 
-    rev_e = [
-        e for e in data["entries"]
-        if e["status"] == "reviewed"
-    ]
+    # FIX: migrate all entries once, then filter — avoids double migrate_entry
+    # on a throwaway dict copy which could miss nested field updates
+    all_entries = [migrate_entry(e) for e in data["entries"]]
+    rev_e = [e for e in all_entries if e["status"] == "reviewed"]
 
     if not rev_e:
         print(f"{YELLOW}No reviewed entries to export.{RESET}")
@@ -349,7 +365,7 @@ def cmd_export(args):
         lines.append(f"- **Outcome**: {e['outcome']}\n")
         lines.append(f"- **Accuracy**: {e['accuracy']}%\n")
         lines.append(f"- **Lesson**: {e['lesson']}\n")
-        lines.append(f"- **Reviewed**: {e['reviewed'][:10]}\n\n")
+        lines.append(f"- **Reviewed**: {(e['reviewed'] or '')[:10]}\n\n")
 
     out.write_text("".join(lines))
 
@@ -361,8 +377,10 @@ def cmd_reminders(args):
 
     cutoff = datetime.now() - timedelta(days=30)
 
+    # FIX: migrate entries once into a list, then filter cleanly
+    all_entries = [migrate_entry(e) for e in data["entries"]]
     old = [
-        e for e in data["entries"]
+        e for e in all_entries
         if e["status"] == "pending"
         and datetime.fromisoformat(e["created"]) < cutoff
     ]
@@ -375,8 +393,8 @@ def cmd_reminders(args):
 
     for e in old:
         days = (
-            datetime.now()
-            - datetime.fromisoformat(e["created"])
+            datetime.now() -
+            datetime.fromisoformat(e["created"])
         ).days
 
         print(f"  #{e['id']} '{e['event']}' — {days} days old")
@@ -402,8 +420,8 @@ def cmd_edit(args):
     ]):
         print(
             f"{RED}Error: provide at least one of "
-            f"--event, --statement, "
-            f"--confidence, --category.{RESET}"
+            f"--event, --statement, --confidence, "
+            f"--category.{RESET}"
         )
         sys.exit(1)
 
@@ -422,10 +440,7 @@ def cmd_edit(args):
         entry["statement"] = args.statement
 
     if args.confidence is not None:
-        entry["confidence"] = validate_score(
-            args.confidence,
-            "Confidence"
-        )
+        entry["confidence"] = validate_score(args.confidence, "Confidence")
 
     if args.category:
         entry["category"] = args.category
@@ -471,171 +486,49 @@ def build_parser():
         description="Personal Black Box — track predictions & calibrate your thinking.",
     )
 
-    sub = parser.add_subparsers(
-        dest="command",
-        metavar="COMMAND"
-    )
-
+    sub = parser.add_subparsers(dest="command", metavar="COMMAND")
     sub.required = True
 
-    p_rec = sub.add_parser(
-        "record",
-        help="Record a new prediction or assumption"
-    )
+    p_rec = sub.add_parser("record", help="Record a new prediction or assumption")
+    p_rec.add_argument("--event", required=True, help="Event name")
+    p_rec.add_argument("--prediction", default=None, help="Prediction text")
+    p_rec.add_argument("--assumption", default=None, help="Assumption text")
+    p_rec.add_argument("--statement", default=None, help="Statement alias")
+    p_rec.add_argument("--confidence", required=True, help="Confidence 0-100")
+    p_rec.add_argument("--category", default="general", help="Category tag")
 
-    p_rec.add_argument(
-        "--event",
-        required=True,
-        help="Event name"
-    )
+    p_lst = sub.add_parser("list", help="List entries")
+    p_lst.add_argument("--status", default="all", choices=["pending", "reviewed", "all"])
+    p_lst.add_argument("--category", default=None, help="Filter by category")
+    p_lst.add_argument("--search", default=None, help="Keyword search")
 
-    p_rec.add_argument(
-        "--prediction",
-        default=None,
-        help="Prediction text"
-    )
+    p_rev = sub.add_parser("review", help="Review a pending entry")
+    p_rev.add_argument("id", type=int, help="Entry ID")
+    p_rev.add_argument("--outcome", required=True, help="Actual outcome")
+    p_rev.add_argument("--accuracy", required=True, help="Accuracy 0-100")
+    p_rev.add_argument("--lesson", default="", help="Lesson learned")
 
-    p_rec.add_argument(
-        "--assumption",
-        default=None,
-        help="Assumption text"
-    )
+    sub.add_parser("stats", help="Show overall statistics")
+    sub.add_parser("calibration", help="Show calibration report")
 
-    p_rec.add_argument(
-        "--statement",
-        default=None,
-        help="Statement (alias for --prediction)"
-    )
+    p_srch = sub.add_parser("search", help="Search entries")
+    p_srch.add_argument("--keyword", default=None, help="Keyword search")
+    p_srch.add_argument("--event", default=None, help="Search by event")
+    p_srch.add_argument("--category", default=None, help="Filter by category")
 
-    p_rec.add_argument(
-        "--confidence",
-        required=True,
-        help="Confidence 0-100"
-    )
+    p_exp = sub.add_parser("export", help="Export reviewed entries")
+    p_exp.add_argument("--output", default="black_box_report.md", help="Output file path")
 
-    p_rec.add_argument(
-        "--category",
-        default="general",
-        help="Category tag"
-    )
+    sub.add_parser("remind", help="Show overdue pending entries")
 
-    p_lst = sub.add_parser(
-        "list",
-        help="List entries"
-    )
-
-    p_lst.add_argument(
-        "--status",
-        default="all",
-        choices=["pending", "reviewed", "all"]
-    )
-
-    p_lst.add_argument(
-        "--category",
-        default=None,
-        help="Filter by category"
-    )
-
-    p_lst.add_argument(
-        "--search",
-        default=None,
-        help="Keyword search"
-    )
-
-    p_rev = sub.add_parser(
-        "review",
-        help="Review a pending entry"
-    )
-
-    p_rev.add_argument(
-        "id",
-        type=int,
-        help="Entry ID"
-    )
-
-    p_rev.add_argument(
-        "--outcome",
-        required=True,
-        help="Actual outcome"
-    )
-
-    p_rev.add_argument(
-        "--accuracy",
-        required=True,
-        help="Accuracy 0-100"
-    )
-
-    p_rev.add_argument(
-        "--lesson",
-        default="",
-        help="Lesson learned"
-    )
-
-    sub.add_parser(
-        "stats",
-        help="Show overall statistics"
-    )
-
-    sub.add_parser(
-        "calibration",
-        help="Show calibration report"
-    )
-
-    p_srch = sub.add_parser(
-        "search",
-        help="Search entries by event, category, or keyword"
-    )
-
-    p_srch.add_argument(
-        "--keyword",
-        default=None,
-        help="Keyword across event/statement/lesson"
-    )
-
-    p_srch.add_argument(
-        "--event",
-        default=None,
-        help="Search by event name"
-    )
-
-    p_srch.add_argument(
-        "--category",
-        default=None,
-        help="Filter by category"
-    )
-
-    p_exp = sub.add_parser(
-        "export",
-        help="Export reviewed entries to Markdown"
-    )
-
-    p_exp.add_argument(
-        "--output",
-        default="black_box_report.md",
-        help="Output file path"
-    )
-
-    sub.add_parser(
-        "remind",
-        help="Show pending entries older than 30 days"
-    )
-
-    p_edit = sub.add_parser(
-        "edit",
-        help="Edit an existing entry"
-    )
-
+    p_edit = sub.add_parser("edit", help="Edit an existing entry")
     p_edit.add_argument("id", type=int)
     p_edit.add_argument("--event", default=None)
     p_edit.add_argument("--statement", default=None)
     p_edit.add_argument("--confidence", default=None)
     p_edit.add_argument("--category", default=None)
 
-    p_del = sub.add_parser(
-        "delete",
-        help="Delete an entry"
-    )
-
+    p_del = sub.add_parser("delete", help="Delete an entry")
     p_del.add_argument("id", type=int)
 
     return parser
