@@ -10,6 +10,10 @@ import black_box
 black_box.DATA_FILE = TEST_FILE
 
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 def test_validate_score_valid():
     assert validate_score(50) == 50
     assert validate_score("75") == 75
@@ -31,6 +35,10 @@ def test_validate_score_invalid_high():
         assert True
 
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 def test_save_and_load():
     data = {"entries": [], "next_id": 1}
 
