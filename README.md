@@ -1,298 +1,319 @@
-# 🖤 Personal Black Box
+# Black Box
 
-> *"Most people overestimate what they can do in a day and underestimate what they can do in a year."*  
-> This tool helps you find out — with data.
+A command-line decision journal and calibration analysis tool for tracking predictions and measuring decision-making accuracy over time.
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E?style=flat-square)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active-22C55E?style=flat-square)]()
-[![pytest](https://img.shields.io/badge/Tested%20with-pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white)](https://pytest.org/)
+[![pytest](https://img.shields.io/badge/Tests-pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white)](https://pytest.org/)
 [![CLI](https://img.shields.io/badge/Interface-CLI-6B7280?style=flat-square)]()
 
 ---
 
-## What Is This?
+## Overview
 
-**Personal Black Box** is a command-line decision journal. Before an important event — an exam, a pitch, a tough conversation — you record what you believe will happen and how confident you are. Afterward, you come back, score your accuracy, and write a short lesson.
+Black Box is a Python-based CLI tool that enables systematic recording and analysis of predictions. The application captures predictions with confidence assessments, records actual outcomes, and computes calibration metrics to reveal patterns between subjective confidence and objective accuracy.
 
-Over time, the tool shows you something most people never see clearly: **how well your confidence actually predicts your accuracy**.
-
-When you run `calibration`, you might discover:
-
-```
-Confidence 80–89% | Predictions: 5 | Average accuracy: 61% | Gap: -24%
-```
-
-That gap is where growth begins.
-
----
-
-## Motivation
-
-Professionals who get feedback loops right — investors, doctors, meteorologists — tend to improve faster than those who don't. This project applies that same principle to everyday decision-making. The goal is not journaling for its own sake. It is building a personal dataset that reveals patterns in how you think.
-
-This project was built as a practical exploration of Python CLI development, data persistence, and software testing — skills directly applicable to backend and tools engineering roles.
+**Core Use Cases:**
+- Track predictions and their outcomes across professional and personal domains
+- Analyze confidence calibration to identify systematic biases
+- Generate statistical reports on prediction accuracy
+- Export decision journals for review and reflection
 
 ---
 
 ## Features
 
 | Feature | Description |
-|---|---|
-| **Record predictions** | Capture event, statement, confidence score, and category before outcomes are known |
-| **Review entries** | Add actual outcome, accuracy score, and lesson after the fact |
-| **Calibration analysis** | Group predictions by confidence range and compare against actual accuracy |
-| **Statistics dashboard** | Average confidence, average accuracy, best/worst predictions, pending count |
-| **Search and filter** | Query entries by keyword, event name, category, or status |
-| **Export to Markdown** | Generate a formatted report of reviewed entries |
-| **Pending reminders** | Flag entries older than 30 days that have not been reviewed |
-| **Edit and delete** | Modify or remove entries with confirmation prompts |
-| **Colored terminal output** | Visual cues for pending, reviewed, high-confidence, and low-accuracy entries |
-| **JSON persistence** | All data saved locally in human-readable format |
-| **Input validation** | Confidence and accuracy scores validated as integers from 0 to 100 |
-| **Helpful error messages** | Clear feedback for invalid commands, missing IDs, and malformed input |
-
----
-
-## Project Structure
-
-```text
-black_box/
-│
-├── black_box.py          # Main CLI application — argument parsing, commands, logic
-├── test_black_box.py     # pytest test suite — validation, calibration, stats
-├── requirements.txt      # Project dependencies
-├── data.json             # JSON-based persistent prediction storage
-├── README.md             # Project documentation
-├── LICENSE               # MIT License
-└── .gitignore            # Files excluded from version control
-```
+|---------|-------------|
+| **Record Predictions** | Capture prediction statement, confidence score, event details, and category |
+| **Review Entries** | Log actual outcome, accuracy score, and lessons learned |
+| **Calibration Analysis** | Group predictions by confidence range; compare stated vs. actual accuracy |
+| **Statistics Dashboard** | Summary metrics: average confidence, accuracy, pending entries, extremes |
+| **Search & Filter** | Query entries by keyword, event, category, or review status |
+| **Export Reports** | Generate formatted Markdown reports of reviewed predictions |
+| **Data Validation** | Input validation for confidence and accuracy scores (0–100) |
+| **Persistent Storage** | All data stored locally in JSON format |
+| **Status Tracking** | Distinguish between pending reviews and completed entries |
+| **Terminal UI** | Colored output for visual status indication |
 
 ---
 
 ## Installation
 
-**Clone the repository:**
+### Requirements
+- Python 3.10 or higher
+- pip
+
+### Setup
 
 ```bash
+# Clone the repository
 git clone https://github.com/harshiniramasamy5-star/black-box.git
 cd black-box
-```
 
-**Install dependencies:**
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-**Verify setup:**
-
-```bash
+# Verify installation
 python black_box.py --help
 ```
 
 ---
 
-## Usage
+## Quick Start
 
 ### Record a Prediction
 
-Capture what you believe before you know the outcome.
-
 ```bash
 python black_box.py record \
-  --event "Final exam" \
-  --prediction "I will score above 85" \
-  --confidence 70 \
-  --category study
-```
-
-```bash
-python black_box.py record \
-  --event "Startup pitch" \
-  --assumption "Investors care most about traction" \
-  --confidence 80 \
+  --event "Q2 earnings announcement" \
+  --prediction "Revenue will exceed 15% YoY growth" \
+  --confidence 75 \
   --category business
 ```
 
----
-
 ### List Predictions
 
-View entries filtered by status.
-
 ```bash
-# Show all pending predictions
+# View pending predictions
 python black_box.py list --status pending
 
-# Show all reviewed predictions
+# View all completed reviews
 python black_box.py list --status reviewed
-
-# Show everything
-python black_box.py list --status all
 ```
-
----
 
 ### Review a Prediction
 
-Come back after the event and record what actually happened.
+After the event, record the outcome:
 
 ```bash
 python black_box.py review 1 \
-  --outcome "Scored 78" \
-  --accuracy 60 \
-  --lesson "I underestimated time pressure."
+  --outcome "Revenue grew 18% YoY" \
+  --accuracy 85 \
+  --lesson "Underestimated market momentum in emerging regions"
 ```
 
----
+### View Calibration
 
-### View Statistics
-
-See your overall performance at a glance.
-
-```bash
-python black_box.py stats
-```
-
-**Example output:**
-
-```
-Total predictions   : 14
-Pending reviews     : 3
-Average confidence  : 74%
-Average accuracy    : 58%
-Best prediction     : "I will finish the project on time" (accuracy: 95%)
-Worst prediction    : "The client will love the first draft" (accuracy: 20%)
-Most overconfident  : business (avg gap: -28%)
-```
-
----
-
-### Calibration Report
-
-The most powerful feature. Reveals how well your subjective confidence matches real outcomes.
+The core analytical feature—shows how well confidence predicts accuracy:
 
 ```bash
 python black_box.py calibration
 ```
 
-**Example output:**
-
+**Sample Output:**
 ```
-Confidence 60–69% | Predictions: 3 | Average accuracy: 58% | Gap: -7%
-Confidence 70–79% | Predictions: 8 | Average accuracy: 52% | Gap: -22%
-Confidence 80–89% | Predictions: 5 | Average accuracy: 61% | Gap: -24%
+Confidence 60–69% | Count: 3 | Avg Accuracy: 58% | Gap: -7%
+Confidence 70–79% | Count: 8 | Avg Accuracy: 52% | Gap: -22%
+Confidence 80–89% | Count: 5 | Avg Accuracy: 61% | Gap: -24%
 ```
 
-A negative gap means you are overconfident in that range. A near-zero gap means you are well-calibrated.
+A **negative gap** indicates overconfidence; a **near-zero gap** indicates well-calibrated predictions.
 
----
+### View Statistics
+
+```bash
+python black_box.py stats
+```
+
+**Sample Output:**
+```
+Total Predictions       : 16
+Pending Reviews         : 2
+Average Confidence      : 74%
+Average Accuracy        : 59%
+Best Prediction         : (accuracy: 95%)
+Worst Prediction        : (accuracy: 20%)
+Overconfident Category  : business (avg gap: -28%)
+```
 
 ### Search Predictions
 
-Find entries by keyword, event name, or category.
-
 ```bash
-python black_box.py search --keyword "exam"
+python black_box.py search --keyword "earnings"
 python black_box.py search --category "business"
 ```
 
----
-
-### Export to Markdown
-
-Generate a readable report file of all reviewed predictions.
+### Export Report
 
 ```bash
 python black_box.py export
 ```
 
+Generates a `report.md` file with all reviewed predictions.
+
 ---
 
-### Edit and Delete
-
-Modify or remove entries with a confirmation prompt before changes are saved.
+## Command Reference
 
 ```bash
-python black_box.py edit 3 --confidence 85
-python black_box.py delete 3
+# Record a new prediction
+python black_box.py record --event TEXT --prediction TEXT --confidence INT --category TEXT
+
+# List predictions
+python black_box.py list --status [pending|reviewed|all]
+
+# Review a prediction
+python black_box.py review ID --outcome TEXT --accuracy INT --lesson TEXT
+
+# View calibration analysis
+python black_box.py calibration
+
+# View statistics
+python black_box.py stats
+
+# Search entries
+python black_box.py search [--keyword TEXT] [--category TEXT]
+
+# Export to Markdown
+python black_box.py export [--output FILE]
+
+# Edit an entry
+python black_box.py edit ID [--confidence INT]
+
+# Delete an entry
+python black_box.py delete ID
 ```
 
 ---
 
 ## Data Model
 
-Each prediction is stored as a JSON object with the following fields:
+Predictions are stored as JSON objects with the following schema:
 
-| Field | Type | Example | Purpose |
-|---|---|---|---|
-| `id` | integer | `1` | Unique identifier for review and edit commands |
-| `event` | string | `"Final exam"` | The real-world event being predicted |
-| `statement` | string | `"I will score above 85"` | The prediction or assumption |
-| `confidence` | integer | `70` | Subjective probability, 0–100 |
-| `category` | string | `"study"` | Tag for grouping and filtering |
-| `created_date` | string | `"2025-07-10"` | Date the entry was recorded |
-| `status` | string | `"pending"` | Either `pending` or `reviewed` |
-| `outcome` | string | `"Scored 78"` | Actual result, added at review |
-| `accuracy` | integer | `60` | How accurate the prediction was, 0–100 |
-| `lesson` | string | `"Underestimated time pressure"` | Reflection written during review |
-| `review_date` | string | `"2025-07-15"` | Date the review was completed |
+```json
+{
+  "id": 1,
+  "event": "Q2 earnings announcement",
+  "prediction": "Revenue will exceed 15% YoY growth",
+  "confidence": 75,
+  "category": "business",
+  "created_date": "2026-05-12",
+  "status": "reviewed",
+  "outcome": "Revenue grew 18% YoY",
+  "accuracy": 85,
+  "lesson": "Underestimated market momentum",
+  "review_date": "2026-05-15"
+}
+```
+
+---
+
+## Project Structure
+
+```
+black-box/
+├── black_box/
+│   ├── __init__.py          # Main CLI logic and argument parsing
+│   └── storage.py           # Data persistence layer
+├── tests/
+│   └── test_black_box.py    # pytest test suite
+├── examples/
+│   └── usage.md             # Usage examples
+├── README.md                # This file
+├── DOCUMENTATION.md         # Detailed documentation
+├── TESTS.md                 # Testing guide
+├── LICENSE                  # MIT License
+├── requirements.txt         # Python dependencies
+└── .gitignore              # Git exclusions
+```
 
 ---
 
 ## Testing
 
-Run the full test suite:
+Run the test suite:
 
 ```bash
-pytest
+# Run all tests with verbose output
+pytest tests/ -v
+
+# Generate coverage report
+pytest tests/ --cov=black_box --cov-report=html
+
+# Run specific test
+pytest tests/test_black_box.py::test_record_prediction -v
 ```
 
-Generate an HTML report:
-
-```bash
-pytest --html=report.html
-```
-
-The test suite covers:
-
-- Confidence and accuracy input validation (0–100 bounds)
-- Calibration bucket grouping and gap calculation
-- Stats computation across mixed pending and reviewed entries
-- Edge cases for empty datasets and single-entry collections
+**Test Coverage:**
+- Input validation (confidence/accuracy bounds)
+- Calibration computation and bucketing
+- Statistics aggregation
+- Data persistence
 - Search and filter logic
+- Edge cases (empty datasets, single entries)
 
 ---
 
 ## Technologies
 
-| Tool | Role |
-|---|---|
-| Python 3.10+ | Core language |
-| `argparse` | CLI argument parsing and subcommand routing |
-| `json` | Data persistence and storage |
-| `datetime` | Timestamping entries and detecting stale predictions |
-| `statistics` | Mean calculations for stats and calibration |
-| `pathlib` | Cross-platform file path handling |
-| `colorama` | Colored terminal output for entry status and accuracy |
-| `pytest` | Automated unit and integration testing |
-| `pytest-html` | HTML test report generation |
+| Component | Tool/Library |
+|-----------|-------------|
+| Language | Python 3.10+ |
+| CLI Framework | argparse |
+| Data Storage | JSON |
+| Testing | pytest |
+| Utilities | datetime, statistics, pathlib, colorama |
 
 ---
 
+## API Usage (Programmatic)
+
+```python
+from black_box import BlackBox
+
+# Initialize
+bb = BlackBox()
+
+# Record a prediction
+bb.record(
+    event="Market event",
+    prediction="Stock will rise",
+    confidence=80,
+    category="finance"
+)
+
+# List predictions
+predictions = bb.list(status="pending")
+
+# Review a prediction
+bb.review(
+    entry_id=1,
+    outcome="Stock rose 5%",
+    accuracy=90,
+    lesson="Market conditions favorable"
+)
+
+# Get calibration metrics
+calibration = bb.calibration()
+
+# Get statistics
+stats = bb.stats()
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. Please follow these guidelines:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit changes with clear messages
+4. Add tests for new functionality
+5. Ensure all tests pass (`pytest tests/`)
+6. Submit a pull request
+
+---
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
 ## Author
 
-**Harshini Ramasamy**  
-First-year Computer Science and Engineering student  
+**Harshini Ramasamy**
 
-Interested in backend development, developer tooling, and building software that solves real problems.
-
-[![GitHub](https://img.shields.io/badge/GitHub-harshiniramasamy5--star-181717?style=flat-square&logo=github)](https://github.com/harshiniramasamy5-star)
+GitHub: [@harshiniramasamy5-star](https://github.com/harshiniramasamy5-star)
