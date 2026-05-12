@@ -1,8 +1,21 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
 .DS_Store
-black_box_data.json
-*.save
-__pycache__/
-*.pyc
-*.save
+.env
+
+# Data & Backup
+*.json
+*.log
+.pytest_cache/
